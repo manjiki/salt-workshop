@@ -8,7 +8,7 @@ def amazon_setname():
     sudo("hostname -F /etc/hostname")
 
 @task
-def install_salt(location, minion_conf, sudo_me='False'):
+def install_saltminion(minion_conf):
     salt_repo_key = "wget --no-check-certificate -O /tmp/saltkey https://repo.saltstack.com/apt/debian/8/amd64/latest/SALTSTACK-GPG-KEY.pub && apt-key add /tmp/saltkey"
     salt_repo = "echo 'deb http://repo.saltstack.com/apt/debian/8/amd64/latest jessie main' > /etc/apt/sources.list.d/saltstack.list"
     apt_update = "apt-get update"
@@ -17,15 +17,14 @@ def install_salt(location, minion_conf, sudo_me='False'):
     sudo(salt_repo)
     sudo(apt_update)
     sudo(install_pkgs)
-
     sudo("echo '{0}'> /etc/salt/minion".format(minion_conf))
     sudo("echo '{0}'> /etc/salt/minion_id".format(env.name))
 
 @task
-def install_saltmaster():
+def install_saltmaster(master_conf):
     install_pkgs = "DEBIAN_FRONTEND=noninteractive apt-get -y -q install salt-master"
     sudo(install_pkg)
-    put("master", "/etc/salt/master", use_sudo=True)
+    put(master_conf, "/etc/salt/master", use_sudo=True)
 
 
 
@@ -50,15 +49,15 @@ def reboot(wait=240, **kwargs):
         sudo("uptime")
 
 @task
-def amazon_bootstrap(user,key_filename=None, name=None, domain=None):
-    location = "amazon"
+def amazon_bootstrap(user,key_filename=None, name=None):
     minion_conf = "master: 127.0.0.1\nlog_level_logfile: debug"
+    master_conf = "master"
     env.key_filename = key_filename
     env.name = name
     env.user = user
     amazon_setname()
-    install_salt(location, minion_conf, sudo_me=True)
-    install_saltmaster()
+    install_saltminion(minion_conf)
+    install_saltmaster(master_conf)
     upgrade()
     reboot()
 
