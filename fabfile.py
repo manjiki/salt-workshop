@@ -1,5 +1,4 @@
 import fabric.contrib.files
-import yaml
 from fabric.api import *
 
 @task
