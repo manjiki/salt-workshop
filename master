@@ -1,0 +1,11 @@
+timeout: 45
+log_file: /var/log/salt/master
+log_level_logfile: debug
+state_verbose: True
+minion_data_cache: True
+file_roots:
+  base:
+    - /etc/salt/states
+pillar_roots:
+  base:
+    - /etc/salt/pillars

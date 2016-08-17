@@ -3,8 +3,8 @@ import yaml
 from fabric.api import *
 
 @task
-def amazon_setname(domain):
-    sudo("echo '{0}.{1}' > /etc/hostname".format(env.name,domain))
+def amazon_setname():
+    sudo("echo '{0}.{1}' > /etc/hostname".format(env.name))
     sudo("hostname -F /etc/hostname")
 
 @task
@@ -13,18 +13,21 @@ def install_salt(location, minion_conf, sudo_me='False'):
     salt_repo = "echo 'deb http://repo.saltstack.com/apt/debian/8/amd64/latest jessie main' > /etc/apt/sources.list.d/saltstack.list"
     apt_update = "apt-get update"
     install_pkgs = "DEBIAN_FRONTEND=noninteractive apt-get -y -q install salt-minion lsb-release sudo"
-    if sudo_me == False:
-        run(salt_repo_key)
-        run(salt_repo)
-        run(apt-update)
-        run(install_pkgs)
-    else:
-        sudo(salt_repo_key)
-        sudo(salt_repo)
-        sudo(apt_update)
-        sudo(install_pkgs)
+    sudo(salt_repo_key)
+    sudo(salt_repo)
+    sudo(apt_update)
+    sudo(install_pkgs)
 
     sudo("echo '{0}'> /etc/salt/minion".format(minion_conf))
+    sudo("echo '{0}'> /etc/salt/minion_id".format(env.name))
+
+@task
+def install_saltmaster():
+    install_pkgs = "DEBIAN_FRONTEND=noninteractive apt-get -y -q install salt-master"
+    sudo(install_pkg)
+    put("master", "/etc/salt/master", use_sudo=True)
+
+
 
 @task
 def upgrade():
@@ -53,9 +56,9 @@ def amazon_bootstrap(user,key_filename=None, name=None, domain=None):
     env.key_filename = key_filename
     env.name = name
     env.user = user
-    amazon_setname(domain)
-    override_dhclient(domain,dns,sudo_me=True)
+    amazon_setname()
     install_salt(location, minion_conf, sudo_me=True)
+    install_saltmaster()
     upgrade()
     reboot()
 
