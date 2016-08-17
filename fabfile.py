@@ -5,8 +5,6 @@ from fabric.api import *
 def amazon_setname():
     sudo("echo '{0}' > /etc/hostname".format(env.name))
     sudo("hostname -F /etc/hostname")
-    sudo("echo 'precedence ::ffff:0:0/96  100'>/etc/gai.conf")
-    
 
 @task
 def install_saltminion(minion_conf):
@@ -24,7 +22,7 @@ def install_saltminion(minion_conf):
 @task
 def install_saltmaster(master_conf):
     install_pkgs = "DEBIAN_FRONTEND=noninteractive apt-get -y -q install salt-master"
-    sudo(install_pkg)
+    sudo(install_pkgs)
     put(master_conf, "/etc/salt/master", use_sudo=True)
 
 
