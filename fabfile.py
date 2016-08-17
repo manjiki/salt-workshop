@@ -3,7 +3,7 @@ from fabric.api import *
 
 @task
 def amazon_setname():
-    sudo("echo '{0}.{1}' > /etc/hostname".format(env.name))
+    sudo("echo '{0}' > /etc/hostname".format(env.name))
     sudo("hostname -F /etc/hostname")
 
 @task
