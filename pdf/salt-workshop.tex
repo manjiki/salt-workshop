@@ -1,0 +1,128 @@
+\documentclass[dvipsnames]{beamer}
+\usepackage{listings}
+\usepackage{scrextend}
+\changefontsizes{10pt}
+\mode<presentation>
+\usefonttheme{serif}
+\usepackage{xcolor}
+\usepackage{amssymb}
+% YAML highlight code from https://tex.stackexchange.com/questions/152829/how-can-i-highlight-yaml-code-in-a-pretty-way-with-listings
+\newcommand\YAMLcolonstyle{\color{magenta}\ttfamily\footnotesize}
+\newcommand\YAMLkeystyle{\color{JungleGreen}\ttfamily\bfseries}
+\newcommand\YAMLvaluestyle{\color{gray}\ttfamily\footnotesize}
+\newcommand\YAMLdashstyle{\color{yellow}\ttfamily\footnotesize}
+\makeatletter
+\newcommand\language@yaml{yaml}
+\expandafter\expandafter\expandafter\lstdefinelanguage
+\expandafter{\language@yaml}
+{
+  keywords={true,false,null,y,n},
+  keywordstyle=\color{darkgray}\bfseries,
+  basicstyle=\YAMLkeystyle\footnotesize,                                 % assuming a key comes first
+  sensitive=false,
+  comment=[l]{\#},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{NavyBlue}\ttfamily,
+  stringstyle=\YAMLvaluestyle\ttfamily,
+  moredelim=[l][\color{magenta}]{*},
+  moredelim=**[il][\YAMLcolonstyle{:}\YAMLvaluestyle]{:},   % switch to value style at :
+  morestring=[b]',
+  morestring=[b]",
+}
+% switch to key style at EOL
+\lst@AddToHook{EveryLine}{\ifx\lst@language\language@yaml\YAMLkeystyle\fi}
+\makeatother
+\newcommand\ProcessThreeDashes{\llap{\color{cyan}\mdseries-{-}-}}
+\usecolortheme[named=orange]{structure}
+\title{Saltstack Workshop}
+\author{e.mouzeli@logicea.net}
+\beamertemplateballitem
+\begin{document}
+\lstset{captionpos=b,escapechar=\&,extendedchars=false,breaklines=true,keepspaces=true,showstringspaces=true}
+\frame{\titlepage}
+\frame{\tableofcontents[hideothersubsections]}
+\section{Basic Packages}
+\begin{frame}[fragile]{Basic Packages}
+$\circ$ Create file \texttt{/etc/salt/states/default/init.sls}:
+\begin{lstlisting}[language=yaml,keepspaces=true]
+thebase:
+  pkg.installed: 
+    - install_recommends: False
+    - pkgs:
+      - wget:
+      - curl:
+      - sysstat:
+      - ethtool:
+      - screen:
+
+openssh-server:
+  pkg.installed
+
+an_ssh_bla:
+  pkg.installed:
+    - name: openssh-server
+\end{lstlisting} 
+$\circ$ Run: \texttt{salt 'firefly' state.sls defaults}
+\end{frame}
+\section{Create pillar data}
+\small
+\begin{frame}[fragile]{Create pillar data}
+\noindent
+$\circ$ Create file \texttt{/etc/salt/pillars/users/init.sls}
+\begin{lstlisting}[language=yaml]
+users:
+  inara:
+    fullname: Inara Serra
+    email: inara@serenity.com
+    home: /home/inara
+    shell: /bin/bash
+    groups:
+      - root
+    pub_keys:
+      - ssh-rsa <snip>6Qd9dNjBpkEW0lJt1NXKQo3== 
+    enabled: True
+\end{lstlisting}
+$\circ$ Run: \texttt{salt 'firefly' pillar.data} \newline \newline
+\pause
+$\circ$ Create file \texttt{/etc/salt/pillars/top.sls}:
+\begin{lstlisting}[language=yaml]
+base:
+  '*':
+    - users
+\end{lstlisting}
+$\circ$ Run again: \texttt{salt 'firefly' pillar.data} \\
+$\circ$ Go ahead and create another user
+\end{frame}
+\normalsize
+\begin{frame}[fragile]{Create pillar data}
+$\circ$ Create the following \texttt{location} pillar data and include it in \texttt{top.sls}:
+\begin{lstlisting}[language=yaml]
+location:
+  name: firefly
+  domain: serenity.com
+  dns:
+    - 8.8.8.8
+    - 8.8.6.6
+  root: /opt/serenity
+\end{lstlisting}
+\pause
+$\circ$ Lastly create some \texttt{elasticsearch} pillar data and add it in \texttt{top.sls} only for your host:
+\begin{lstlisting}[language=yaml]
+elasticsearch:
+  config:
+    cluster.name: {{salt['grains.get']('elasticsearch:cluster', "kaylee")}}
+    node.name: {{salt['grains.get']('fqdn')}}
+    node.master: true
+    node.data: true
+    bootstrap.mlockall: true
+    transport.tcp.compress: true
+\end{lstlisting}
+\end{frame}
+\section{Running states - Create users}
+\begin{frame}[fragile]{Running states - Create users}
+Create a new user state, using the following:
+\begin{lstlisting}[language=yaml]
+
+\end{lstlisting}
+\end{frame}
+\end{document}
