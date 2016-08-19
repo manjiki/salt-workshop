@@ -5,6 +5,7 @@
 \mode<presentation>
 \usefonttheme{serif}
 \usepackage{xcolor}
+\usepackage{dirtytalk}
 \usepackage{amssymb}
 % YAML highlight code from https://tex.stackexchange.com/questions/152829/how-can-i-highlight-yaml-code-in-a-pretty-way-with-listings
 \newcommand\YAMLcolonstyle{\color{magenta}\ttfamily\footnotesize}
@@ -120,9 +121,144 @@ elasticsearch:
 \end{frame}
 \section{Running states - Create users}
 \begin{frame}[fragile]{Running states - Create users}
-Create a new user state, using the following:
+\small
+$\circ$ Create and run user state, using the following:
 \begin{lstlisting}[language=yaml]
-
+{% for user,info in salt['pillar.get']('users').items() %}
+{{user}}:
+  user.present:
+    - fullname: {{ info['fullname'] }}
+    - shell: {{ info['shell']|default("/bin/true") }}
+    - home: {{ info['home']|default("/home/%s" % user) }}
+    - groups:
+      {% for group in info['groups']|default([]) %}
+      - {{ group }}
+      {% endfor %} &\pause&
+  {% if 'pub_keys' in info %}
+  ssh_auth:
+    - present
+    - user: {{ user }}
+    - names:
+  {% for pub_ssh_key in info['pub_keys']|default([]) %}
+      - {{ pub_ssh_key }}
+  {% endfor %}
+    - require:
+      - user: {{ user }}
+  {% endif %}
+{% endfor %}
 \end{lstlisting}
+\end{frame}
+\normalsize
+\begin{frame}[fragile]{Running states - Create users (Notes)}
+\begin{itemize}
+\item[$\circ$] Salt's state system will first render all pillar data before rendering any *.sls files.
+\pause
+\item[$\circ$] \texttt{|default("some\_value")} instructs the jinja renderer to apply this value 
+if the variable we requested does not exist.
+\pause
+\item[$\circ$] \texttt{("/home/\%s" \% user)} works as well as 
+python's \texttt{"/home/\{0\}".format(user)}
+\pause
+\item[$\circ$] \texttt{ssh\_auth} is a salt module that will take care of creating an 
+\texttt{authorized\_keys} file under a user's \texttt{.ssh/} diretory, 
+import any public keys found in the user's pillar data and lastly, apply the 
+appropriate permissions \texttt{(600)}.
+\end{itemize}
+\end{frame}
+\section{Running states - Install elasticsearch}
+\begin{frame}[fragile]{Running states - Install elasticsearch}
+\small
+$\circ$ Create the elasticsearch state (\texttt{init.sls}) and use our elasticsearch 
+pillar data as config options for \texttt{elasticsearch.yml}
+\begin{lstlisting}[language=yaml]
+elasticsearch.yml:
+  file.managed:
+    - name: /etc/elasticsearch/elasticsearch.yml
+    - source: salt://elasticsearch/elasticsearch.yml.j2
+    - template: jinja
+    - context:
+      elasticsearch: {{salt['pillar.get']('elasticsearch')}}
+    - backup: minion
+    - makedirs: True
+\end{lstlisting}
+\pause
+$\circ$ Create the source file salt's templating engine will render to produce 
+\texttt{elasticsearch.yml}. Check the file URI in the \texttt{source} parameter
+\pause
+\begin{lstlisting}[language=yaml]
+{# Alternative syntax is elasticsearch['config'] #}
+{%- for config, value in elasticsearch.config.items() %}
+{{config}}: {{value}}
+{%- endfor %}
+\end{lstlisting}
+\pause
+$\circ$ We need the file \texttt{elasticsearch.yml} to be present before the package's installation (it's a debian thing).
+\end{frame}
+\begin{frame}[fragile]{Running states - Install elasticsearch}
+$\circ$ Continue working on the elasticsearch state:
+\begin{lstlisting}[language=yaml]
+elasticsearch:
+  pkgrepo.managed:
+    - humanname: Elasticsearch Official Debian Repository
+    - name: deb http://packages.elasticsearch.org/elasticsearch/1.5/debian stable main
+    - key_url: http://packages.elasticsearch.org/GPG-KEY-elasticsearch
+    - file: /etc/apt/sources.list.d/elasticsearch.list 
+&\pause\vspace{-10pt}&
+  pkg:
+    - installed
+    - hold: True
+    - require:
+      - pkgrepo: elasticsearch
+      - file: elasticsearch.yml
+&\pause\vspace{-8pt}&
+  service:
+    - running
+    - enable: True
+    - require:
+      - pkg: elasticsearch
+    - watch:
+      - file: elasticsearch*
+\end{lstlisting}
+\end{frame}
+\normalsize
+\begin{frame}[fragile]{Running states - Install elasticsearch (Notes)}
+\begin{itemize}
+\item[$\circ$] Two states are not permited to share the same name unless they call 
+different salt modules.
+\pause
+\item [$\circ$] The \texttt{require} parameter in the \texttt{pkg} state will ensure that the  
+\texttt{pkgrepo} state named \say{elasticsearch} and the \texttt{file} state named 
+\say{elasticsearch.yml} will run before installing the \say{elasticsearch} package.
+\pause
+\item [$\circ$] The \texttt{watch} parameter in the \texttt{service} state 
+tells salt to restart the service named \say{elasticsearch} if any \texttt{file} 
+state who's name matches the expression 
+\texttt{elasticsearch*}. In our example, if there are any changes on 
+\texttt{elasticsearch.yml}, the elasticsearch service will restart.
+\end{itemize}
+\end{frame}
+\section{Make your elasticsearch state great again}
+\begin{frame}[fragile]{Make your elasticsearch state great again}
+$\circ$ Elasticsearch requires java, and we want to use Oracle Java. Go on and ensure that 
+Oracle java is installed before installing elasticsearch. What you need is:
+\begin{lstlisting}[language=bash,basicstyle=\footnotesize\ttfamily]
+PPA: deb http://ppa.launchpad.net/webupd8team/java/ubuntu xenial main
+Keyid:  EEA14886
+keyserver: keyserver.ubuntu.com
+Package name: oracle-java8-installer
+\end{lstlisting}
+\vspace{15pt}
+$\circ$ For reasons beyond the scope of this workshop, you must include 
+the following salt module in your state:
+\begin{lstlisting}[language=yaml]
+accept_license:
+  debconf.set:
+    - data:
+        'shared/accepted-oracle-license-v1-1': {'type': 'boolean', 'value': True}
+\end{lstlisting}
+\end{frame}
+\begin{frame}
+\center
+\includegraphics[scale=0.8]{36555134}
 \end{frame}
 \end{document}
