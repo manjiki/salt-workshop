@@ -1,0 +1,4 @@
+{# Alternative syntax is elasticsearch[’config’] #}
+{%- for config, value in elasticsearch.config.items() %} 
+{{ config }}: {{ value }}
+{%- endfor %}
