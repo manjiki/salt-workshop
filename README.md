@@ -47,4 +47,14 @@ base:
 ```
 * `$ salt firefly state.highstate` (you will get a failed state message, again)
     * - No matching sls found for 'defaults' in env 'base'
-* `$ touch /etc/salt/states/defaults/init.sls
+* edit `/etc/salt/states/defaults/init.sls` with the following contents:
+```
+nginx_lalalal:
+  pkg.installed:
+    - name: nginx
+
+nginx:
+  pkg.installed
+```
+* `$ salt firefly state.highstate` or `$ salt firefly state.sls defaults`
+* Congrats! You just run your first salt state!
